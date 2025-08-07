@@ -1,0 +1,107 @@
+<section class="chat-container">
+  <div class="header-decoration"></div>
+
+  <header class="chat-header">
+    <div class="header-content">
+      <div class="bot-avatar">
+        <div class="avatar-icon">🌿</div>
+        <div class="status-indicator"></div>
+      </div>
+      <div class="header-text">
+        <h1 class="bot-title">FoodBot</h1>
+        <p class="bot-subtitle">Tu asistente culinario inteligente</p>
+      </div>
+    </div>
+  </header>
+
+  <main class="chat-messages" #chatBox>
+    <div class="welcome-message" *ngIf="messages.length === 0">
+      <div class="welcome-icon">🍃</div>
+      <h3>¡Hola! Soy FoodBot</h3>
+      <p>Estoy aquí para ayudarte con tus pedidos de comida. ¿En qué puedo asistirte hoy?</p>
+    </div>
+
+    <div *ngFor="let msg of messages; let i = index"
+         class="message-wrapper"
+         [class.user-message]="msg.user"
+         [class.bot-message]="!msg.user">
+
+      <div class="message" [class.animate-in]="i === messages.length - 1">
+        <ng-container *ngIf="msg.type === 'text'">
+          <div class="message-content">
+            <p class="msg-text">{{ msg.content }}</p>
+          </div>
+        </ng-container>
+
+        <ng-container *ngIf="msg.type === 'image'">
+          <div class="message-image-container">
+            <img [src]="msg.content" alt="Imagen enviada" class="msg-image" />
+          </div>
+        </ng-container>
+
+        <div class="message-time">{{ getCurrentTime() }}</div>
+      </div>
+    </div>
+
+    <div class="typing-indicator" *ngIf="isTyping">
+      <div class="typing-dots">
+        <span></span>
+        <span></span>
+        <span></span>
+      </div>
+    </div>
+  </main>
+
+  <form class="chat-input-container" (submit)="sendMessage(); $event.preventDefault()">
+    <div class="input-wrapper">
+      <div class="attachment-section">
+        <label for="upload" class="upload-button" title="Subir imagen">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
+            <circle cx="8.5" cy="8.5" r="1.5"/>
+            <polyline points="21,15 16,10 5,21"/>
+          </svg>
+        </label>
+        <input id="upload" type="file" accept="image/*" (change)="onImageUpload($event)" hidden />
+      </div>
+
+      <div class="text-input-section">
+        <input
+          type="text"
+          class="message-input"
+          placeholder="Escribe tu mensaje..."
+          [(ngModel)]="userInput"
+          name="message"
+          required
+          autocomplete="off"
+          maxlength="300"
+          [disabled]="isTyping"
+        />
+
+        <button
+          type="submit"
+          class="send-button"
+          [disabled]="!userInput.trim() || isTyping"
+          [class.pulse]="userInput.trim()"
+          aria-label="Enviar mensaje">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <line x1="22" y1="2" x2="11" y2="13"></line>
+            <polygon points="22,2 15,22 11,13 2,9 22,2"></polygon>
+          </svg>
+        </button>
+      </div>
+    </div>
+
+    <div class="quick-actions">
+      <button type="button" class="quick-action" (click)="sendQuickMessage('Ver menú')">
+        📋 Ver menú
+      </button>
+      <button type="button" class="quick-action" (click)="sendQuickMessage('Hacer pedido')">
+        🛒 Hacer pedido
+      </button>
+      <button type="button" class="quick-action" (click)="sendQuickMessage('Ayuda')">
+        ❓ Ayuda
+      </button>
+    </div>
+  </form>
+</section>

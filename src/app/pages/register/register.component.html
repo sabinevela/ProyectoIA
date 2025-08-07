@@ -1,0 +1,61 @@
+<div class="form-container">
+  <h2>Registro</h2>
+  <form (ngSubmit)="onSubmit()" #registerForm="ngForm" novalidate>
+    <mat-form-field appearance="outline" class="full-width">
+      <mat-label>Nombre</mat-label>
+      <input
+        matInput
+        name="name"
+        [(ngModel)]="name"
+        required
+        minlength="2"
+        #nameCtrl="ngModel"
+      />
+      <mat-error *ngIf="nameCtrl.invalid && nameCtrl.touched">
+        Por favor ingresa tu nombre (mínimo 2 caracteres)
+      </mat-error>
+    </mat-form-field>
+
+    <mat-form-field appearance="outline" class="full-width">
+      <mat-label>Email</mat-label>
+      <input
+        matInput
+        type="email"
+        name="email"
+        [(ngModel)]="email"
+        required
+        email
+        #emailCtrl="ngModel"
+      />
+      <mat-error *ngIf="emailCtrl.invalid && emailCtrl.touched">
+        Ingresa un correo electrónico válido
+      </mat-error>
+    </mat-form-field>
+
+    <mat-form-field appearance="outline" class="full-width">
+      <mat-label>Contraseña</mat-label>
+      <input
+        matInput
+        type="password"
+        name="password"
+        [(ngModel)]="password"
+        required
+        minlength="6"
+        #passwordCtrl="ngModel"
+      />
+      <mat-error *ngIf="passwordCtrl.invalid && passwordCtrl.touched">
+        La contraseña debe tener al menos 6 caracteres
+      </mat-error>
+    </mat-form-field>
+
+    <button
+      mat-raised-button
+      color="primary"
+      type="submit"
+      [disabled]="!registerForm.form.valid"
+      class="submit-btn"
+    >
+      Registrarse
+    </button>
+  </form>
+</div>
