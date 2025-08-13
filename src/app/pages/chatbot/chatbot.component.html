@@ -39,6 +39,12 @@
           </div>
         </ng-container>
 
+        <ng-container *ngIf="msg.type === 'audio'">
+          <div class="message-audio-container">
+            <audio [src]="msg.content" controls></audio>
+          </div>
+        </ng-container>
+
         <div class="message-time">{{ getCurrentTime() }}</div>
       </div>
     </div>
@@ -63,6 +69,26 @@
           </svg>
         </label>
         <input id="upload" type="file" accept="image/*" (change)="onImageUpload($event)" hidden />
+
+        <label for="upload-audio" class="upload-button" title="Subir audio">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M12 3a3 3 0 0 0-3 3v6a3 3 0 0 0 6 0V6a3 3 0 0 0-3-3z"></path>
+            <path d="M19 10v2a7 7 0 0 1-14 0v-2"></path>
+            <line x1="12" y1="19" x2="12" y2="22"></line>
+          </svg>
+        </label>
+        <input id="upload-audio" type="file" accept="audio/*" (change)="onAudioUpload($event)" hidden />
+
+        <button type="button"
+                class="record-button"
+                [class.recording]="isRecording"
+                (click)="toggleRecording()"
+                [disabled]="isTyping"
+                title="Grabar audio">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+            <circle cx="12" cy="12" r="6"></circle>
+          </svg>
+        </button>
       </div>
 
       <div class="text-input-section">

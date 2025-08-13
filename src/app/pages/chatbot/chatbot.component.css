@@ -9,7 +9,6 @@
   --sage-700: #4f6f4f;
   --sage-800: #435843;
   --sage-900: #374637;
-
   --mint-50: #f0fdf5;
   --mint-100: #dcfce8;
   --mint-200: #bbf7d1;
@@ -17,12 +16,10 @@
   --mint-400: #4ade80;
   --mint-500: #22c55e;
   --mint-600: #16a34a;
-
   --shadow-subtle: 0 2px 8px rgba(26, 38, 26, 0.04);
   --shadow-soft: 0 4px 20px rgba(26, 38, 26, 0.08);
   --shadow-medium: 0 8px 30px rgba(26, 38, 26, 0.12);
   --shadow-strong: 0 20px 60px rgba(26, 38, 26, 0.15);
-
   --gradient-primary: linear-gradient(135deg, var(--sage-400) 0%, var(--mint-400) 100%);
   --gradient-secondary: linear-gradient(135deg, var(--sage-100) 0%, var(--mint-100) 100%);
   --gradient-message: linear-gradient(135deg, var(--mint-50) 0%, var(--sage-50) 100%);
@@ -245,6 +242,14 @@
   border: 1px solid var(--sage-200);
 }
 
+.message-audio-container {
+  background: white;
+  border-radius: 16px;
+  padding: 12px;
+  box-shadow: var(--shadow-soft);
+  border: 1px solid var(--sage-200);
+}
+
 .msg-image {
   width: 240px;
   height: auto;
@@ -328,6 +333,7 @@
   display: flex;
   align-items: center;
   padding-left: 8px;
+  gap: 8px;
 }
 
 .upload-button {
@@ -348,6 +354,33 @@
   background: var(--sage-200);
   color: var(--sage-700);
   transform: translateY(-1px);
+}
+
+.record-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  background: var(--sage-100);
+  color: var(--sage-600);
+  cursor: pointer;
+  transition: all 0.3s ease;
+  border: none;
+}
+
+.record-button:hover {
+  background: var(--sage-200);
+  color: var(--sage-700);
+  transform: translateY(-1px);
+}
+
+.record-button.recording {
+  background: #ffe5e5;
+  color: #d12020;
+  box-shadow: 0 0 0 4px rgba(209, 32, 32, 0.15), var(--shadow-medium);
+  animation: recordPulse 1.6s infinite;
 }
 
 .text-input-section {
@@ -492,41 +525,42 @@
   }
 }
 
+@keyframes recordPulse {
+  0%, 100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(0.97);
+  }
+}
+
 @media (max-width: 768px) {
   .chat-container {
     height: 100vh;
     border-radius: 0;
     max-width: 100%;
   }
-
   .chat-header {
     padding: 20px 24px;
   }
-
   .bot-title {
     font-size: 24px;
   }
-
   .bot-subtitle {
     font-size: 13px;
   }
-
   .chat-messages {
     padding: 20px 24px;
   }
-
   .message {
     max-width: 85%;
   }
-
   .chat-input-container {
     padding: 20px 24px;
   }
-
   .quick-actions {
     gap: 8px;
   }
-
   .quick-action {
     padding: 8px 12px;
     font-size: 12px;

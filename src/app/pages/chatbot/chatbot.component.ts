@@ -4,7 +4,7 @@ import { FormsModule } from '@angular/forms';
 
 interface ChatMessage {
   user: boolean;
-  type: 'text' | 'image';
+  type: 'text' | 'image' | 'audio';
   content: string;
   timestamp?: Date;
 }
@@ -28,6 +28,10 @@ export class ChatbotComponent implements AfterViewChecked {
   orderState: OrderState = 'waiting';
   currentOrder = { product: '', quantity: 0 };
 
+  isRecording = false;
+  private mediaRecorder?: MediaRecorder;
+  private audioChunks: Blob[] = [];
+
   private readonly botResponses = {
     greeting: [
       '¡Hola! Soy FoodBot, tu asistente culinario personal. ¿En qué puedo ayudarte hoy?',
@@ -39,20 +43,17 @@ export class ChatbotComponent implements AfterViewChecked {
       'Aquí tienes nuestro menú destacado:\n\n🍕 Pizzas artesanales\n🍔 Hamburguesas gourmet\n🥗 Ensaladas frescas\n🍝 Pastas caseras\n🌮 Comida mexicana\n🍣 Sushi fresco\n\n¿Sobre qué categoría quieres saber más?'
     ],
     help: [
-      'Puedo ayudarte con:\n• 📋 Ver nuestro menú completo\n• 🛒 Realizar pedidos paso a paso\n• 📷 Analizar imágenes de comida\n• ❓ Responder dudas sobre ingredientes\n• 🚚 Información de delivery\n\n¿En qué te puedo asistir?',
+      'Puedo ayudarte con:\n• 📋 Ver nuestro menú completo\n• 🛒 Realizar pedidos paso a paso\n• 📷 Analizar imágenes de comida\n• 🎤 Recibir mensajes de audio\n• 🚚 Información de delivery\n\n¿En qué te puedo asistir?',
       'Estoy aquí para hacer tu experiencia más fácil:\n\n✨ Recomendaciones personalizadas\n🔍 Búsqueda por ingredientes\n⏱️ Tiempos de preparación\n💰 Información de precios\n📍 Zonas de entrega\n\n¿Qué necesitas saber?'
     ]
   };
 
   sendMessage(): void {
     if (!this.userInput.trim() || this.isTyping) return;
-
     this.addMessage(true, 'text', this.userInput.trim());
     const userMsg = this.userInput.trim().toLowerCase();
     this.userInput = '';
-
     this.simulateTyping();
-
     setTimeout(() => {
       this.handleOrderFlow(userMsg);
       this.stopTyping();
@@ -62,7 +63,6 @@ export class ChatbotComponent implements AfterViewChecked {
 
   sendQuickMessage(message: string): void {
     if (this.isTyping) return;
-
     this.userInput = message;
     this.sendMessage();
   }
@@ -70,18 +70,16 @@ export class ChatbotComponent implements AfterViewChecked {
   onImageUpload(event: Event): void {
     const input = event.target as HTMLInputElement;
     if (!input.files?.length || this.isTyping) return;
-
     const file = input.files[0];
     if (file.size > 5 * 1024 * 1024) {
       this.addMessage(false, 'text', 'La imagen es muy grande. Por favor, sube una imagen menor a 5MB.');
+      input.value = '';
       return;
     }
-
     const reader = new FileReader();
     reader.onload = () => {
       this.addMessage(true, 'image', reader.result as string);
       this.simulateTyping();
-
       setTimeout(() => {
         const responses = [
           '¡Imagen recibida! Se ve delicioso. ¿Te gustaría pedir algo similar?',
@@ -93,13 +91,74 @@ export class ChatbotComponent implements AfterViewChecked {
         this.scrollToBottom();
       }, this.getRandomDelay(1000, 2000));
     };
-
     reader.onerror = () => {
       this.addMessage(false, 'text', 'Hubo un error al procesar la imagen. Por favor, intenta de nuevo.');
     };
-
     reader.readAsDataURL(file);
     input.value = '';
+  }
+
+  onAudioUpload(event: Event): void {
+    const input = event.target as HTMLInputElement;
+    if (!input.files?.length || this.isTyping) return;
+    const file = input.files[0];
+    if (file.size > 15 * 1024 * 1024) {
+      this.addMessage(false, 'text', 'El audio es muy grande. Por favor, sube un audio menor a 15MB.');
+      input.value = '';
+      return;
+    }
+    const url = URL.createObjectURL(file);
+    this.addMessage(true, 'audio', url);
+    this.simulateTyping();
+    setTimeout(() => {
+      const responses = [
+        'Audio recibido 🎤. ¿Deseas que lo transcriba o hago una recomendación?',
+        'He recibido tu nota de voz. ¿Te muestro el menú o avanzamos con un pedido?',
+        'Gracias por el audio. Puedo ayudarte con el pedido ahora mismo.'
+      ];
+      this.addMessage(false, 'text', this.getRandomResponse(responses));
+      this.stopTyping();
+      this.scrollToBottom();
+    }, this.getRandomDelay(900, 1800));
+    input.value = '';
+  }
+
+  async toggleRecording(): Promise<void> {
+    if (this.isRecording) {
+      this.stopRecording();
+      return;
+    }
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      this.audioChunks = [];
+      this.mediaRecorder = new MediaRecorder(stream);
+      this.mediaRecorder.ondataavailable = e => {
+        if (e.data && e.data.size > 0) this.audioChunks.push(e.data);
+      };
+      this.mediaRecorder.onstop = () => {
+        const blob = new Blob(this.audioChunks, { type: this.mediaRecorder?.mimeType || 'audio/webm' });
+        const url = URL.createObjectURL(blob);
+        this.addMessage(true, 'audio', url);
+        this.simulateTyping();
+        setTimeout(() => {
+          this.addMessage(false, 'text', 'Grabación recibida 🎙️. ¿Quieres que la procese o continuamos con tu pedido?');
+          this.stopTyping();
+          this.scrollToBottom();
+        }, this.getRandomDelay(900, 1800));
+        stream.getTracks().forEach(t => t.stop());
+      };
+      this.mediaRecorder.start();
+      this.isRecording = true;
+    } catch {
+      this.addMessage(false, 'text', 'No se pudo acceder al micrófono. Revisa permisos del navegador.');
+    }
+  }
+
+  private stopRecording(): void {
+    if (this.mediaRecorder && this.mediaRecorder.state !== 'inactive') {
+      this.mediaRecorder.stop();
+    }
+    this.isRecording = false;
   }
 
   handleOrderFlow(message: string): void {
@@ -141,66 +200,42 @@ export class ChatbotComponent implements AfterViewChecked {
       this.resetOrder();
       return;
     }
-
     this.currentOrder.product = this.formatProductName(message);
-    this.addMessage(false, 'text',
-      `Excelente elección: "${this.currentOrder.product}" 👌\n\n¿Cuántas unidades deseas? Por favor, ingresa solo el número.`
-    );
+    this.addMessage(false, 'text', `Excelente elección: "${this.currentOrder.product}" 👌\n\n¿Cuántas unidades deseas? Por favor, ingresa solo el número.`);
     this.orderState = 'askingQuantity';
   }
 
   private handleQuantityState(message: string): void {
     const qty = parseInt(message);
-
     if (isNaN(qty) || qty <= 0) {
-      this.addMessage(false, 'text',
-        'Por favor, ingresa un número válido mayor que cero. Ejemplo: 2, 5, 10'
-      );
+      this.addMessage(false, 'text', 'Por favor, ingresa un número válido mayor que cero. Ejemplo: 2, 5, 10');
       return;
     }
-
     if (qty > 50) {
-      this.addMessage(false, 'text',
-        'Para pedidos de más de 50 unidades, por favor contacta directamente con nosotros. ¿Quieres ajustar la cantidad?'
-      );
+      this.addMessage(false, 'text', 'Para pedidos de más de 50 unidades, por favor contacta directamente con nosotros. ¿Quieres ajustar la cantidad?');
       return;
     }
-
     this.currentOrder.quantity = qty;
     const unitText = qty === 1 ? 'unidad' : 'unidades';
-
-    this.addMessage(false, 'text',
-      `📋 Resumen de tu pedido:\n• Producto: ${this.currentOrder.product}\n• Cantidad: ${qty} ${unitText}\n\n¿Confirmas este pedido? (Responde: sí/no)`
-    );
+    this.addMessage(false, 'text', `📋 Resumen de tu pedido:\n• Producto: ${this.currentOrder.product}\n• Cantidad: ${qty} ${unitText}\n\n¿Confirmas este pedido? (Responde: sí/no)`);
     this.orderState = 'confirming';
   }
 
   private handleConfirmingState(message: string): void {
     if (this.containsWords(message, ['sí', 'si', 'yes', 'confirmo', 'correcto', 'ok'])) {
       const orderNumber = this.generateOrderNumber();
-      this.addMessage(false, 'text',
-        `🎉 ¡Pedido confirmado exitosamente!\n\n📦 Número de orden: #${orderNumber}\n⏱️ Tiempo estimado: 25-35 minutos\n💰 Total estimado: Consultar al recibir\n\n¿Te gustaría pedir algo más?`
-      );
+      this.addMessage(false, 'text', `🎉 ¡Pedido confirmado exitosamente!\n\n📦 Número de orden: #${orderNumber}\n⏱️ Tiempo estimado: 25-35 minutos\n💰 Total estimado: Consultar al recibir\n\n¿Te gustaría pedir algo más?`);
       this.resetOrder();
     } else if (this.containsWords(message, ['no', 'cancelar', 'cambiar'])) {
-      this.addMessage(false, 'text',
-        'Pedido cancelado. ¿Te gustaría hacer un nuevo pedido o hay algo más en lo que pueda ayudarte?'
-      );
+      this.addMessage(false, 'text', 'Pedido cancelado. ¿Te gustaría hacer un nuevo pedido o hay algo más en lo que pueda ayudarte?');
       this.resetOrder();
     } else {
-      this.addMessage(false, 'text',
-        'Por favor, responde "sí" para confirmar o "no" para cancelar el pedido.'
-      );
+      this.addMessage(false, 'text', 'Por favor, responde "sí" para confirmar o "no" para cancelar el pedido.');
     }
   }
 
-  private addMessage(user: boolean, type: 'text' | 'image', content: string): void {
-    this.messages.push({
-      user,
-      type,
-      content,
-      timestamp: new Date()
-    });
+  private addMessage(user: boolean, type: 'text' | 'image' | 'audio', content: string): void {
+    this.messages.push({ user, type, content, timestamp: new Date() });
   }
 
   private simulateTyping(): void {
@@ -222,10 +257,7 @@ export class ChatbotComponent implements AfterViewChecked {
   }
 
   private normalizeText(text: string): string {
-    return text.toLowerCase()
-      .normalize('NFD')
-      .replace(/[\u0300-\u036f]/g, '')
-      .trim();
+    return text.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim();
   }
 
   private formatProductName(product: string): string {
@@ -245,10 +277,7 @@ export class ChatbotComponent implements AfterViewChecked {
   }
 
   getCurrentTime(): string {
-    return new Date().toLocaleTimeString('es-ES', {
-      hour: '2-digit',
-      minute: '2-digit'
-    });
+    return new Date().toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
   }
 
   ngAfterViewChecked(): void {
@@ -259,8 +288,6 @@ export class ChatbotComponent implements AfterViewChecked {
     try {
       const element = this.chatBox.nativeElement;
       element.scrollTop = element.scrollHeight;
-    } catch (err) {
-      console.error('Error scrolling to bottom:', err);
-    }
+    } catch {}
   }
 }
