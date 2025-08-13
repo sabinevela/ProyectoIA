@@ -4,10 +4,12 @@ import { LoginComponent } from './pages/login/login.component';
 import { RegisterComponent } from './pages/register/register.component';
 import { ChatbotComponent } from './pages/chatbot/chatbot.component';
 import { NavegacionComponent } from './pages/navegacion/navegacion.component';
+import { ChatVisionComponent } from './pages/chat-vision/chat-vision.component';
 
 export const routes: Routes = [
   { path: '', component: HomeComponent },
   { path: 'navegacion', component: NavegacionComponent },
-  { path: 'register', component: RegisterComponent },
-  { path: 'chatbot', component: ChatbotComponent }
+  { path: 'register', component: ChatVisionComponent },
+  { path: 'chatbot', component: ChatbotComponent },
+  
 ];

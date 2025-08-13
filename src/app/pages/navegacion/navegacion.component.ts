@@ -133,7 +133,7 @@ export class NavegacionComponent implements OnInit, AfterViewInit {
         this.router.navigate(['/chatbot']);
         break;
       case 'vision':
-        this.router.navigate(['/chat-vision']);
+        this.router.navigate(['/register']);
         break;
       case 'generator':
         this.router.navigate(['/chat-generator']);
