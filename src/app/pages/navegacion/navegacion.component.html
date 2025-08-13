@@ -1,0 +1,138 @@
+<section class="navegacion-container">
+  <!-- Fondo animado -->
+  <div class="background-overlay">
+    <div class="floating-bubble bubble-1"></div>
+    <div class="floating-bubble bubble-2"></div>
+    <div class="floating-bubble bubble-3"></div>
+  </div>
+
+
+  <!-- Chat Sections -->
+  <main class="chat-sections">
+
+    <!-- OpenAI Chat Section -->
+    <div #chatSection class="chat-section" [class.scroll-visible]="chatbots[0].isVisible" [attr.data-index]="0">
+      <div class="section-content">
+        <div class="text-content">
+          <h2 class="section-title">{{ chatbots[0].title }}</h2>
+          <p class="section-subtitle">{{ chatbots[0].subtitle }}</p>
+          <p class="section-description">{{ chatbots[0].description }}</p>
+
+          <ul class="features-list">
+            <li *ngFor="let feature of chatbots[0].features" class="feature-item">
+              <span class="feature-bullet">•</span>
+              {{ feature }}
+            </li>
+          </ul>
+
+          <button class="cta-button openai-button" (click)="handleChatClick(chatbots[0])">
+            <span class="button-icon">{{ chatbots[0].icon }}</span>
+            Iniciar Chat
+          </button>
+        </div>
+
+        <div class="image-content">
+          <div class="lottie-container">
+            <dotlottie-wc src="https://lottie.host/3db74997-723d-4000-8d9a-421842e285a4/8WYFSNBL4j.lottie"
+              style="width: 350px;height: 350px" speed="1" autoplay loop></dotlottie-wc>
+
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Vision Chat Section -->
+    <div #chatSection class="chat-section reverse" [class.scroll-visible]="chatbots[1].isVisible" [attr.data-index]="1">
+      <div class="section-content">
+        <div class="image-content">
+          <div class="lottie-container">
+            <div class="placeholder-icon">{{ chatbots[1].icon }}</div>
+            <div class="image-content">
+              <div class="lottie-container">
+                <dotlottie-wc
+  src="https://lottie.host/28832e11-9def-43d9-855b-37df783b6c6b/YDo6nU3vWg.lottie"
+  style="width: 300px;height: 300px"
+  speed="1"
+  autoplay
+  loop
+></dotlottie-wc>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="text-content">
+          <h2 class="section-title">{{ chatbots[1].title }}</h2>
+          <p class="section-subtitle">{{ chatbots[1].subtitle }}</p>
+          <p class="section-description">{{ chatbots[1].description }}</p>
+
+          <ul class="features-list">
+            <li *ngFor="let feature of chatbots[1].features" class="feature-item">
+              <span class="feature-bullet">•</span>
+              {{ feature }}
+            </li>
+          </ul>
+
+          <button class="cta-button vision-button" (click)="handleChatClick(chatbots[1])">
+            <span class="button-icon">{{ chatbots[1].icon }}</span>
+            Iniciar Chat
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Generator Chat Section -->
+    <div #chatSection class="chat-section" [class.scroll-visible]="chatbots[2].isVisible" [attr.data-index]="2">
+      <div class="section-content">
+        <div class="text-content">
+          <h2 class="section-title">{{ chatbots[2].title }}</h2>
+          <p class="section-subtitle">{{ chatbots[2].subtitle }}</p>
+          <p class="section-description">{{ chatbots[2].description }}</p>
+
+          <ul class="features-list">
+            <li *ngFor="let feature of chatbots[2].features" class="feature-item">
+              <span class="feature-bullet">•</span>
+              {{ feature }}
+            </li>
+          </ul>
+
+          <button class="cta-button generator-button" (click)="handleChatClick(chatbots[2])">
+            <span class="button-icon">{{ chatbots[2].icon }}</span>
+            Iniciar Chat
+          </button>
+        </div>
+
+        <div class="image-content">
+          <div class="lottie-container">
+            <div class="placeholder-icon">{{ chatbots[2].icon }}</div>
+            <div class="lottie-container">
+                <dotlottie-wc src="https://lottie.host/a0776b64-1a2f-4ac5-9c87-631c46a81b19/BWmBwAX7KM.lottie"
+                  style="width: 350px; height: 350px" speed="1" autoplay loop>
+                </dotlottie-wc>
+              </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </main>
+
+  <!-- Footer -->
+  
+
+  <!-- Transition overlay -->
+  <div *ngIf="isTransitioning" class="transition-overlay">
+    <div class="transition-content">
+      <div class="transition-spinner"></div>
+      <h2>Preparando tu experiencia</h2>
+      <dotlottie-wc
+  src="https://lottie.host/5376e99f-feaf-4f22-96b6-4d51ac64370e/pum0Vgvm7f.lottie"
+  style="width: 300px;height: 300px"
+  speed="2"
+  autoplay
+  loop
+></dotlottie-wc>
+      <p>Conectando con la inteligencia artificial...</p>
+    </div>
+  </div>
+</section>
