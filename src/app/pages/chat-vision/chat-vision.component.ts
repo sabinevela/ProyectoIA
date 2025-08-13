@@ -1,7 +1,8 @@
-import { Component, ElementRef, ViewChild, AfterViewChecked } from '@angular/core';
+import { Component, ElementRef, ViewChild, AfterViewChecked, CUSTOM_ELEMENTS_SCHEMA } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { HttpClient, HttpClientModule } from '@angular/common/http';
+
 
 interface ChatMessage {
   user: boolean;
@@ -25,7 +26,8 @@ interface ApiResponse {
   standalone: true,
   imports: [CommonModule, FormsModule, HttpClientModule],
   templateUrl: './chat-vision.component.html',
-  styleUrl: './chat-vision.component.css'
+  styleUrl: './chat-vision.component.css',
+  schemas: [CUSTOM_ELEMENTS_SCHEMA] 
 })
 export class ChatVisionComponent implements AfterViewChecked {
   @ViewChild('chatBox') private chatBox!: ElementRef<HTMLDivElement>;
@@ -41,12 +43,8 @@ export class ChatVisionComponent implements AfterViewChecked {
   }
 
   private addWelcomeMessage(): void {
-    this.messages.push({
-      user: false,
-      type: 'text',
-      content: '👁️ ¡Hola! Soy **Food Vision**, tu asistente de reconocimiento de comida.\n\n🔍 Sube una imagen y te diré exactamente qué comida es usando inteligencia artificial entrenada con **101 tipos de comida**.\n\n📸 ¡Empecemos!',
-      timestamp: new Date()
-    });
+    // No agregar mensaje de bienvenida automáticamente
+    // El HTML ahora maneja el estado de bienvenida
   }
 
   onImageUpload(event: Event): void {
@@ -98,18 +96,28 @@ export class ChatVisionComponent implements AfterViewChecked {
   private analyzeImage(file: File): void {
     this.isAnalyzing = true;
 
+    console.log('🚀 Enviando imagen a API:', this.API_URL);
+    console.log('📁 Archivo:', file.name, file.size, 'bytes');
+
     // Crear FormData para enviar la imagen
     const formData = new FormData();
     formData.append('image', file);
 
-    // Llamar a la API
-    this.http.post<ApiResponse>(this.API_URL, formData).subscribe({
+    // Llamar a la API con timeout
+    this.http.post<ApiResponse>(this.API_URL, formData, {
+      headers: {
+        // No agregar Content-Type, deja que el browser lo maneje
+      }
+    }).subscribe({
       next: (response) => {
         console.log('✅ Respuesta API:', response);
         this.handleApiResponse(response);
       },
       error: (error) => {
-        console.error('❌ Error API:', error);
+        console.error('❌ Error API completo:', error);
+        console.error('❌ Status:', error.status);
+        console.error('❌ Message:', error.message);
+        console.error('❌ URL:', error.url);
         this.handleApiError(error);
       }
     });
@@ -200,6 +208,12 @@ export class ChatVisionComponent implements AfterViewChecked {
 
   ngAfterViewChecked(): void {
     this.scrollToBottom();
+  }
+
+  clearChat(): void {
+    this.messages = [];
+    this.isAnalyzing = false;
+    this.addWelcomeMessage();
   }
 
   private scrollToBottom(): void {
