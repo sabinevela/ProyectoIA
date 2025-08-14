@@ -106,7 +106,7 @@ export class NavegacionComponent implements OnInit, AfterViewInit, OnDestroy {
   private navigateToChat(chatbotId: string): void {
     switch (chatbotId) {
       case 'openai': this.router.navigate(['/chatbot']); break;
-      case 'vision': this.router.navigate(['/register']); break;
+      case 'vision': this.router.navigate(['/chatvision']); break;
       case 'generator': this.router.navigate(['/chat-generator']); break;
       default: console.error(`Ruta no definida para: ${chatbotId}`);
     }
