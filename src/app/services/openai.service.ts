@@ -1,13 +1,14 @@
 import { Injectable } from '@angular/core';
 import { HttpClient, HttpHeaders } from '@angular/common/http';
 import { Observable, firstValueFrom } from 'rxjs';
+import { environment } from '../../environments/environment.prod';
 
 @Injectable({
   providedIn: 'root'
 })
 export class OpenAIService {
   private baseUrl = 'https://api.openai.com/v1';
-  private apiKey = 'process.env.OPENAI_API_KEY;';
+  private apiKey = environment.apiKey;
 
   private assistantId = 'asst_zYwhn4A5fR3bdzbNtoMRiayn';
 
@@ -52,7 +53,6 @@ export class OpenAIService {
 
   async sendMessage(message: string): Promise<Observable<string>> {
     try {
-      // Si no hay thread, crear uno nuevo
       if (!this.threadId) {
         const threadResponse = await firstValueFrom(this.createThread());
         this.threadId = threadResponse.id;
@@ -65,19 +65,16 @@ export class OpenAIService {
 
       const currentThreadId = this.threadId;
 
-      // Añadir mensaje al thread
       await firstValueFrom(this.addMessage(currentThreadId, message));
       console.log('Mensaje añadido al thread');
 
-      // Ejecutar el asistente (sin streaming por ahora, pero más rápido)
       const runResponse = await firstValueFrom(this.runAssistant(currentThreadId));
       const runId = runResponse.id;
       console.log('Asistente ejecutándose:', runId);
 
-      // Polling súper agresivo y optimizado
       return new Observable<string>(observer => {
         let attempts = 0;
-        const maxAttempts = 300; // 1 minuto máximo (300 * 200ms)
+        const maxAttempts = 300;
 
         const checkStatus = async () => {
           try {
@@ -86,7 +83,6 @@ export class OpenAIService {
             console.log(`[${attempts}] Estado del run:`, run.status);
 
             if (run.status === 'completed') {
-              // Obtener la respuesta inmediatamente
               const messages = await firstValueFrom(this.getMessages(currentThreadId));
               const lastMessage = messages.data[0];
 
@@ -115,7 +111,6 @@ export class OpenAIService {
           }
         };
 
-        // Empezar inmediatamente
         checkStatus();
       });
 
