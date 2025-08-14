@@ -9,9 +9,7 @@ import { environment } from '../../environments/environment.prod';
 export class OpenAIService {
   private baseUrl = 'https://api.openai.com/v1';
   private apiKey = environment.apiKey;
-
   private assistantId = 'asst_zYwhn4A5fR3bdzbNtoMRiayn';
-
   private threadId: string | null = null;
 
   constructor(private http: HttpClient) {}
@@ -24,11 +22,17 @@ export class OpenAIService {
     });
   }
 
+  private getFormHeaders(): HttpHeaders {
+    return new HttpHeaders({
+      'Authorization': `Bearer ${this.apiKey}`
+    });
+  }
+
   private createThread(): Observable<any> {
     return this.http.post(`${this.baseUrl}/threads`, {}, { headers: this.getHeaders() });
   }
 
-  private addMessage(threadId: string, content: string): Observable<any> {
+  private addMessage(threadId: string, content: any): Observable<any> {
     const body = {
       role: 'user',
       content: content
@@ -56,7 +60,6 @@ export class OpenAIService {
       if (!this.threadId) {
         const threadResponse = await firstValueFrom(this.createThread());
         this.threadId = threadResponse.id;
-        console.log('Thread creado:', this.threadId);
       }
 
       if (!this.threadId) {
@@ -66,21 +69,18 @@ export class OpenAIService {
       const currentThreadId = this.threadId;
 
       await firstValueFrom(this.addMessage(currentThreadId, message));
-      console.log('Mensaje añadido al thread');
 
       const runResponse = await firstValueFrom(this.runAssistant(currentThreadId));
       const runId = runResponse.id;
-      console.log('Asistente ejecutándose:', runId);
 
       return new Observable<string>(observer => {
         let attempts = 0;
-        const maxAttempts = 300;
+        const maxAttempts = 200;
 
         const checkStatus = async () => {
           try {
             attempts++;
             const run = await firstValueFrom(this.getRun(currentThreadId, runId));
-            console.log(`[${attempts}] Estado del run:`, run.status);
 
             if (run.status === 'completed') {
               const messages = await firstValueFrom(this.getMessages(currentThreadId));
@@ -88,25 +88,21 @@ export class OpenAIService {
 
               if (lastMessage && lastMessage.content && lastMessage.content[0]) {
                 const response = lastMessage.content[0].text.value;
-                console.log('✅ Respuesta obtenida:', response);
                 observer.next(response);
                 observer.complete();
               } else {
                 observer.error(new Error('No se pudo obtener la respuesta'));
               }
             } else if (run.status === 'failed' || run.status === 'cancelled' || run.status === 'expired') {
-              observer.error(new Error(`Run falló con estado: ${run.status}`));
+              observer.error(new Error(`Error en el asistente: ${run.status}`));
             } else if (run.status === 'requires_action') {
-              console.log('⚠️ El run requiere acción:', run.required_action);
               observer.error(new Error('El asistente requiere una acción adicional'));
             } else if (attempts >= maxAttempts) {
-              observer.error(new Error('Timeout: El asistente tardó demasiado en responder'));
+              observer.error(new Error('El asistente tardó demasiado en responder'));
             } else {
-              // Polling ultra rápido: cada 100ms para obtener respuesta instantánea
-              setTimeout(checkStatus, 100);
+              setTimeout(checkStatus, 200);
             }
           } catch (error) {
-            console.error('❌ Error en checkStatus:', error);
             observer.error(error);
           }
         };
@@ -115,8 +111,61 @@ export class OpenAIService {
       });
 
     } catch (error) {
-      console.error('Error en sendMessage:', error);
       throw error;
+    }
+  }
+
+  async transcribeAudio(audioBlob: Blob): Promise<string> {
+    try {
+      const formData = new FormData();
+
+      let fileName = 'audio.webm';
+      if (audioBlob.type.includes('mp3')) fileName = 'audio.mp3';
+      else if (audioBlob.type.includes('wav')) fileName = 'audio.wav';
+      else if (audioBlob.type.includes('m4a')) fileName = 'audio.m4a';
+
+      formData.append('file', audioBlob, fileName);
+      formData.append('model', 'whisper-1');
+      formData.append('language', 'es');
+
+      const response = await firstValueFrom(
+        this.http.post<any>(`${this.baseUrl}/audio/transcriptions`, formData, {
+          headers: this.getFormHeaders()
+        })
+      );
+
+      const transcription = response.text || '';
+
+      if (!transcription.trim()) {
+        throw new Error('Transcripción vacía');
+      }
+
+      return transcription;
+
+    } catch (error) {
+      throw new Error('Error al transcribir el audio');
+    }
+  }
+
+  async generateSpeech(text: string): Promise<Blob> {
+    try {
+      const body = {
+        model: 'tts-1',
+        input: text,
+        voice: 'nova',
+        response_format: 'mp3'
+      };
+
+      const response = await firstValueFrom(
+        this.http.post(`${this.baseUrl}/audio/speech`, body, {
+          headers: this.getHeaders(),
+          responseType: 'blob'
+        })
+      );
+
+      return response;
+    } catch (error) {
+      throw new Error('No se pudo generar el audio');
     }
   }
 }
