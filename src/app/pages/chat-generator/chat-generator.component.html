@@ -1,1 +1,165 @@
-<p>chat-generator works!</p>
+<div class="chat-container">
+  <header class="chat-header">
+    <div class="header-content">
+      <div class="bot-avatar">
+        <div class="avatar-icon">🎨</div>
+      </div>
+      <div class="header-text">
+        <h1 class="bot-title">ImageBot</h1>
+        <p class="bot-subtitle">Generador de imágenes con IA</p>
+      </div>
+    </div>
+  </header>
+
+  <main class="chat-messages" #chatBox>
+    <div class="welcome-message" *ngIf="messages.length === 0">
+      <div class="welcome-icon">🎨</div>
+      <h3>¡Hola! Soy ImageBot</h3>
+      <p>Puedo generar imágenes increíbles para ti. Solo describe lo que quieres crear.</p>
+    </div>
+
+    <div *ngFor="let msg of messages; let i = index" class="message-wrapper" 
+         [class.user-message]="msg.user" [class.bot-message]="!msg.user">
+      
+      <div class="message">
+        <!-- Mensaje de texto normal -->
+        <ng-container *ngIf="msg.type === 'text'">
+          <div class="message-content">
+            <p class="msg-text">{{ msg.content }}</p>
+          </div>
+        </ng-container>
+
+        <!-- Mensaje de generación de imagen -->
+        <ng-container *ngIf="msg.type === 'image-generation'">
+          <div class="generation-container">
+            <div class="generation-header">
+              <h4>{{ msg.content }}</h4>
+              <div *ngIf="msg.generationState?.prompt" class="prompt-display">
+                <div class="prompt-label">Prompt:</div>
+                <div class="prompt-text">{{ msg.generationState?.prompt }}</div>
+              </div>
+            </div>
+
+            <!-- Mostrar error si existe -->
+            <div *ngIf="msg.generationState && msg.generationState.error" class="error-message">
+              <div class="error-icon">❌</div>
+              <div class="error-text">{{ msg.generationState.error }}</div>
+            </div>
+
+            <!-- Contenedor de imágenes -->
+            <div *ngIf="msg.generationState && !msg.generationState.error" class="images-section">
+              
+              <!-- Imágenes parciales -->
+              <div class="partial-images-section" *ngIf="hasPartialImages(msg)">
+                <div class="section-title">
+                  <div class="title-icon">⚡</div>
+                  <h5>Generando paso a paso...</h5>
+                </div>
+                <div class="partial-grid">
+                  <div *ngFor="let partialImg of msg.generationState.partialImages; let idx = index"
+                       class="partial-image-container" [class.loaded]="partialImg">
+                    <div class="partial-label">PASO {{ idx + 1 }}</div>
+                    <div class="image-wrapper">
+                      <img *ngIf="partialImg" [src]="partialImg" [alt]="'Imagen parcial ' + (idx + 1)" 
+                           class="partial-image">
+                      <div *ngIf="!partialImg" class="placeholder-image">
+                        <div class="loading-spinner"></div>
+                        <span>Generando...</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Imagen final -->
+              <div class="final-image-section" *ngIf="hasFinalImage(msg)">
+                <div class="section-title">
+                  <div class="title-icon">✨</div>
+                  <h5>RESULTADO FINAL</h5>
+                </div>
+                <div class="final-image-container">
+                  <img [src]="msg.generationState.finalImage!" alt="Imagen generada final" 
+                       class="final-image-display">
+                </div>
+              </div>
+
+              <!-- Indicador de carga inicial -->
+              <div *ngIf="msg.generationState.isGenerating && !hasPartialImages(msg) && !hasFinalImage(msg)" 
+                   class="loading-container">
+                <div class="loading-spinner large"></div>
+                <div class="loading-text">
+                  <p>🎨 Iniciando generación...</p>
+                  <small>Esto puede tomar unos segundos</small>
+                </div>
+              </div>
+
+            </div>
+          </div>
+        </ng-container>
+
+        <div class="message-time">{{ getMessageTime(msg) }}</div>
+      </div>
+    </div>
+
+    <!-- Indicador de escritura -->
+    <div class="typing-indicator" *ngIf="isGenerating">
+      <div class="typing-dots">
+        <span></span>
+        <span></span>
+        <span></span>
+      </div>
+      <span class="typing-text">Generando imagen...</span>
+    </div>
+  </main>
+
+  <!-- Input del chat -->
+  <div class="chat-input-container">
+    <div class="input-wrapper">
+      <textarea
+        class="message-input"
+        placeholder="Describe detalladamente la imagen que quieres generar..."
+        [(ngModel)]="userInput"
+        (keydown.enter)="onEnterKey($event)"
+        [disabled]="isGenerating"
+        maxlength="500"
+        rows="1">
+      </textarea>
+      
+      <div class="input-actions">
+        <div class="char-counter" [class.warning]="userInput.length > 400">
+          {{ userInput.length }}/500
+        </div>
+        <button
+          type="button"
+          class="send-button"
+          (click)="sendMessage()"
+          [disabled]="!userInput.trim() || isGenerating">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <line x1="22" y1="2" x2="11" y2="13"></line>
+            <polygon points="22,2 15,22 11,13 2,9 22,2"></polygon>
+          </svg>
+        </button>
+      </div>
+    </div>
+
+    <!-- Botones rápidos -->
+    <div class="quick-actions">
+      <button type="button" class="quick-action" 
+              (click)="sendQuickMessage('Genera una imagen de un gato espacial con casco de astronauta flotando entre estrellas')">
+        🐱 Gato espacial
+      </button>
+      <button type="button" class="quick-action" 
+              (click)="sendQuickMessage('Crea un hermoso paisaje de montañas al atardecer con un lago cristalino reflejando los colores del cielo')">
+        🏔️ Paisaje montañoso
+      </button>
+      <button type="button" class="quick-action" 
+              (click)="sendQuickMessage('Dibuja una ciudad futurista con rascacielos brillantes y autos voladores en el cielo nocturno')">
+        🌆 Ciudad futurista
+      </button>
+      <button type="button" class="quick-action" 
+              (click)="sendQuickMessage('Una casa en el árbol mágica con luces brillantes en un bosque encantado')">
+        🏠 Casa mágica
+      </button>
+    </div>
+  </div>
+</div>

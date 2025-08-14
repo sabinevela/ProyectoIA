@@ -3,7 +3,6 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { HttpClient, HttpClientModule } from '@angular/common/http';
 
-
 interface ChatMessage {
   user: boolean;
   type: 'text' | 'image';
@@ -34,17 +33,28 @@ export class ChatVisionComponent implements AfterViewChecked {
 
   messages: ChatMessage[] = [];
   isAnalyzing = false;
-  
-  // 🔥 Tu API de Google Cloud Run
+  currentTime = '';
   private readonly API_URL = 'https://img-221467505226.us-central1.run.app';
 
   constructor(private http: HttpClient) {
+    this.updateTime();
     this.addWelcomeMessage();
+    setInterval(() => this.updateTime(), 1000);
+  }
+
+  private updateTime(): void {
+    const now = new Date();
+    const date = now.toLocaleDateString('es-ES');
+    const time = now.toLocaleTimeString('es-ES', { 
+      hour: '2-digit', 
+      minute: '2-digit',
+      second: '2-digit'
+    });
+    this.currentTime = `${date} ${time}`;
   }
 
   private addWelcomeMessage(): void {
-    // No agregar mensaje de bienvenida automáticamente
-    // El HTML ahora maneja el estado de bienvenida
+    this.addMessage(false, 'text', '👋 **¡Bienvenido al Analizador de Comida con IA!**\n\n📸 **¿Cómo funciona?**\n• Sube una foto de comida\n• La IA la analizará automáticamente\n• Te dirá qué tipo de comida es\n\n🚀 **¡Empecemos! Sube tu primera imagen.**');
   }
 
   onImageUpload(event: Event): void {
@@ -103,10 +113,10 @@ export class ChatVisionComponent implements AfterViewChecked {
     const formData = new FormData();
     formData.append('image', file);
 
-    // Llamar a la API con timeout
+    // Llamar a la API con timeout y manejo completo de errores
     this.http.post<ApiResponse>(this.API_URL, formData, {
       headers: {
-        // No agregar Content-Type, deja que el browser lo maneje
+        // No agregar Content-Type, deja que el browser lo maneje automáticamente
       }
     }).subscribe({
       next: (response) => {
@@ -171,11 +181,13 @@ export class ChatVisionComponent implements AfterViewChecked {
     let errorMessage = '❌ **Error al conectar con el servidor**\n\n';
     
     if (error.status === 0) {
-      errorMessage += '**Problema:** No se pudo conectar con el servidor.';
+      errorMessage += '**Problema:** No se pudo conectar con el servidor.\n\n**Posibles causas:**\n• Problemas de red\n• Servidor temporalmente inactivo\n• CORS no configurado';
     } else if (error.status >= 500) {
-      errorMessage += '**Problema:** Error interno del servidor.';
+      errorMessage += '**Problema:** Error interno del servidor.\n\n**Consejo:** Intenta nuevamente en unos minutos.';
+    } else if (error.status === 400) {
+      errorMessage += '**Problema:** Error en el formato de la imagen.\n\n**Consejo:** Asegúrate de subir una imagen válida.';
     } else {
-      errorMessage += `**Error ${error.status}:** ${error.message || 'Algo salió mal'}`;
+      errorMessage += `**Error ${error.status}:** ${error.message || 'Algo salió mal'}\n\n**Consejo:** Intenta nuevamente.`;
     }
 
     this.addMessage(false, 'text', errorMessage);
@@ -190,20 +202,34 @@ export class ChatVisionComponent implements AfterViewChecked {
       content,
       timestamp: new Date()
     });
+    this.scrollToBottom();
   }
 
   formatMessage(content: string): string {
-    // Convertir markdown básico a HTML
+    // Convertir markdown básico a HTML de forma segura
     return content
       .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>') // **bold**
       .replace(/\n/g, '<br>'); // saltos de línea
   }
 
-  getCurrentTime(): string {
-    return new Date().toLocaleTimeString('es-ES', { 
+  getMessageTime(message: ChatMessage): string {
+    if (!message.timestamp) return '';
+    const date = message.timestamp.toLocaleDateString('es-ES');
+    const time = message.timestamp.toLocaleTimeString('es-ES', { 
       hour: '2-digit', 
       minute: '2-digit' 
     });
+    return `${date} ${time}`;
+  }
+
+  getCurrentTime(): string {
+    const now = new Date();
+    const date = now.toLocaleDateString('es-ES');
+    const time = now.toLocaleTimeString('es-ES', { 
+      hour: '2-digit', 
+      minute: '2-digit' 
+    });
+    return `${date} ${time}`;
   }
 
   ngAfterViewChecked(): void {
@@ -218,8 +244,12 @@ export class ChatVisionComponent implements AfterViewChecked {
 
   private scrollToBottom(): void {
     try {
-      const element = this.chatBox.nativeElement;
-      element.scrollTop = element.scrollHeight;
+      if (this.chatBox?.nativeElement) {
+        const element = this.chatBox.nativeElement;
+        setTimeout(() => {
+          element.scrollTop = element.scrollHeight;
+        }, 100);
+      }
     } catch (error) {
       // Silenciar errores de scroll
     }
