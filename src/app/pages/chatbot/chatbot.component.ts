@@ -1,6 +1,7 @@
 import { Component, ElementRef, ViewChild, AfterViewChecked } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { OpenAIService } from '../../services/openai.service';
 
 interface ChatMessage {
   user: boolean;
@@ -8,8 +9,6 @@ interface ChatMessage {
   content: string;
   timestamp?: Date;
 }
-
-type OrderState = 'waiting' | 'askingProduct' | 'askingQuantity' | 'confirming';
 
 @Component({
   selector: 'app-chatbot',
@@ -20,45 +19,67 @@ type OrderState = 'waiting' | 'askingProduct' | 'askingQuantity' | 'confirming';
 })
 export class ChatbotComponent implements AfterViewChecked {
   @ViewChild('chatBox') private chatBox!: ElementRef<HTMLDivElement>;
-
   userInput = '';
   messages: ChatMessage[] = [];
   isTyping = false;
-
-  orderState: OrderState = 'waiting';
-  currentOrder = { product: '', quantity: 0 };
-
   isRecording = false;
   private mediaRecorder?: MediaRecorder;
   private audioChunks: Blob[] = [];
 
-  private readonly botResponses = {
-    greeting: [
-      '¡Hola! Soy FoodBot, tu asistente culinario personal. ¿En qué puedo ayudarte hoy?',
-      '¡Bienvenido! Estoy aquí para ayudarte con tus pedidos de comida. ¿Qué te gustaría ordenar?',
-      '¡Hola! ¿Listo para descubrir deliciosas opciones? ¿Qué puedo preparar para ti?'
-    ],
-    menu: [
-      '🍕 Pizza Margherita - $12.99\n🍔 Hamburguesa Clásica - $9.99\n🥗 Ensalada César - $8.50\n🍝 Pasta Carbonara - $11.50\n🌮 Tacos Mexicanos - $10.99\n\n¿Qué te llama la atención?',
-      'Aquí tienes nuestro menú destacado:\n\n🍕 Pizzas artesanales\n🍔 Hamburguesas gourmet\n🥗 Ensaladas frescas\n🍝 Pastas caseras\n🌮 Comida mexicana\n🍣 Sushi fresco\n\n¿Sobre qué categoría quieres saber más?'
-    ],
-    help: [
-      'Puedo ayudarte con:\n• 📋 Ver nuestro menú completo\n• 🛒 Realizar pedidos paso a paso\n• 📷 Analizar imágenes de comida\n• 🎤 Recibir mensajes de audio\n• 🚚 Información de delivery\n\n¿En qué te puedo asistir?',
-      'Estoy aquí para hacer tu experiencia más fácil:\n\n✨ Recomendaciones personalizadas\n🔍 Búsqueda por ingredientes\n⏱️ Tiempos de preparación\n💰 Información de precios\n📍 Zonas de entrega\n\n¿Qué necesitas saber?'
-    ]
-  };
+  constructor(private openAIService: OpenAIService) {}
 
-  sendMessage(): void {
+  private typewriterEffect(text: string, messageIndex: number): void {
+    const words = text.split(' ');
+    let currentWordIndex = 0;
+
+    const typeNextWord = () => {
+      if (currentWordIndex < words.length && this.messages[messageIndex]) {
+        if (currentWordIndex === 0) {
+          this.messages[messageIndex].content = words[currentWordIndex];
+        } else {
+          this.messages[messageIndex].content += ' ' + words[currentWordIndex];
+        }
+        currentWordIndex++;
+        this.scrollToBottom();
+        setTimeout(typeNextWord, 25);
+      } else {
+        this.stopTyping();
+        this.scrollToBottom();
+      }
+    };
+
+    typeNextWord();
+  }
+
+  async sendMessage(): Promise<void> {
     if (!this.userInput.trim() || this.isTyping) return;
-    this.addMessage(true, 'text', this.userInput.trim());
-    const userMsg = this.userInput.trim().toLowerCase();
+    const userMsg = this.userInput.trim();
+    this.addMessage(true, 'text', userMsg);
     this.userInput = '';
     this.simulateTyping();
-    setTimeout(() => {
-      this.handleOrderFlow(userMsg);
+
+    try {
+      const responseObservable = await this.openAIService.sendMessage(userMsg);
+
+      responseObservable.subscribe({
+        next: (botResponse: string) => {
+          this.addMessage(false, 'text', '');
+          const botMessageIndex = this.messages.length - 1;
+          this.typewriterEffect(botResponse, botMessageIndex);
+        },
+        error: (error) => {
+          console.error('Error del asistente:', error);
+          this.addMessage(false, 'text', 'Lo siento, hubo un error al procesar tu mensaje.');
+          this.stopTyping();
+          this.scrollToBottom();
+        }
+      });
+    } catch (error) {
+      console.error('Error al iniciar conversación:', error);
+      this.addMessage(false, 'text', 'Error al conectar con el asistente.');
       this.stopTyping();
       this.scrollToBottom();
-    }, this.getRandomDelay(800, 2000));
+    }
   }
 
   sendQuickMessage(message: string): void {
@@ -81,18 +102,10 @@ export class ChatbotComponent implements AfterViewChecked {
       this.addMessage(true, 'image', reader.result as string);
       this.simulateTyping();
       setTimeout(() => {
-        const responses = [
-          '¡Imagen recibida! Se ve delicioso. ¿Te gustaría pedir algo similar?',
-          '¡Excelente foto! ¿Quieres que te recomiende algo parecido de nuestro menú?',
-          'Me encanta lo que veo en la imagen. ¿Puedo sugerirte algunas opciones similares?'
-        ];
-        this.addMessage(false, 'text', this.getRandomResponse(responses));
+        this.addMessage(false, 'text', 'Imagen recibida. ¿Deseas pedir algo similar?');
         this.stopTyping();
         this.scrollToBottom();
-      }, this.getRandomDelay(1000, 2000));
-    };
-    reader.onerror = () => {
-      this.addMessage(false, 'text', 'Hubo un error al procesar la imagen. Por favor, intenta de nuevo.');
+      }, 1500);
     };
     reader.readAsDataURL(file);
     input.value = '';
@@ -111,15 +124,10 @@ export class ChatbotComponent implements AfterViewChecked {
     this.addMessage(true, 'audio', url);
     this.simulateTyping();
     setTimeout(() => {
-      const responses = [
-        'Audio recibido 🎤. ¿Deseas que lo transcriba o hago una recomendación?',
-        'He recibido tu nota de voz. ¿Te muestro el menú o avanzamos con un pedido?',
-        'Gracias por el audio. Puedo ayudarte con el pedido ahora mismo.'
-      ];
-      this.addMessage(false, 'text', this.getRandomResponse(responses));
+      this.addMessage(false, 'text', 'Audio recibido. ¿Quieres que lo procese o continuamos con tu pedido?');
       this.stopTyping();
       this.scrollToBottom();
-    }, this.getRandomDelay(900, 1800));
+    }, 1500);
     input.value = '';
   }
 
@@ -133,7 +141,7 @@ export class ChatbotComponent implements AfterViewChecked {
       this.audioChunks = [];
       this.mediaRecorder = new MediaRecorder(stream);
       this.mediaRecorder.ondataavailable = e => {
-        if (e.data && e.data.size > 0) this.audioChunks.push(e.data);
+        if (e.data.size > 0) this.audioChunks.push(e.data);
       };
       this.mediaRecorder.onstop = () => {
         const blob = new Blob(this.audioChunks, { type: this.mediaRecorder?.mimeType || 'audio/webm' });
@@ -141,10 +149,10 @@ export class ChatbotComponent implements AfterViewChecked {
         this.addMessage(true, 'audio', url);
         this.simulateTyping();
         setTimeout(() => {
-          this.addMessage(false, 'text', 'Grabación recibida 🎙️. ¿Quieres que la procese o continuamos con tu pedido?');
+          this.addMessage(false, 'text', 'Grabación recibida. ¿Quieres que la procese o continuamos con tu pedido?');
           this.stopTyping();
           this.scrollToBottom();
-        }, this.getRandomDelay(900, 1800));
+        }, 1500);
         stream.getTracks().forEach(t => t.stop());
       };
       this.mediaRecorder.start();
@@ -161,81 +169,25 @@ export class ChatbotComponent implements AfterViewChecked {
     this.isRecording = false;
   }
 
-  handleOrderFlow(message: string): void {
-    switch (this.orderState) {
-      case 'waiting':
-        this.handleWaitingState(message);
-        break;
-      case 'askingProduct':
-        this.handleProductState(message);
-        break;
-      case 'askingQuantity':
-        this.handleQuantityState(message);
-        break;
-      case 'confirming':
-        this.handleConfirmingState(message);
-        break;
-    }
-  }
-
-  private handleWaitingState(message: string): void {
-    if (this.containsWords(message, ['menú', 'menu', 'carta', 'opciones', 'ver'])) {
-      this.addMessage(false, 'text', this.getRandomResponse(this.botResponses.menu));
-    } else if (this.containsWords(message, ['ayuda', 'help', 'que puedes', 'como funciona'])) {
-      this.addMessage(false, 'text', this.getRandomResponse(this.botResponses.help));
-    } else if (this.containsWords(message, ['pedido', 'pedir', 'ordenar', 'quiero', 'comprar'])) {
-      this.addMessage(false, 'text', '¡Perfecto! ¿Qué producto te gustaría pedir? Puedes decirme el nombre o elegir del menú.');
-      this.orderState = 'askingProduct';
-    } else if (this.containsWords(message, ['hola', 'buenas', 'hello', 'hi'])) {
-      this.addMessage(false, 'text', this.getRandomResponse(this.botResponses.greeting));
-    } else {
-      this.addMessage(false, 'text', '¡Hola! ¿Te gustaría ver nuestro menú, hacer un pedido o necesitas ayuda con algo más?');
-      this.orderState = 'askingProduct';
-    }
-  }
-
-  private handleProductState(message: string): void {
-    if (this.containsWords(message, ['cancelar', 'salir', 'no quiero', 'atrás'])) {
-      this.addMessage(false, 'text', 'Pedido cancelado. ¿Hay algo más en lo que pueda ayudarte?');
-      this.resetOrder();
-      return;
-    }
-    this.currentOrder.product = this.formatProductName(message);
-    this.addMessage(false, 'text', `Excelente elección: "${this.currentOrder.product}" 👌\n\n¿Cuántas unidades deseas? Por favor, ingresa solo el número.`);
-    this.orderState = 'askingQuantity';
-  }
-
-  private handleQuantityState(message: string): void {
-    const qty = parseInt(message);
-    if (isNaN(qty) || qty <= 0) {
-      this.addMessage(false, 'text', 'Por favor, ingresa un número válido mayor que cero. Ejemplo: 2, 5, 10');
-      return;
-    }
-    if (qty > 50) {
-      this.addMessage(false, 'text', 'Para pedidos de más de 50 unidades, por favor contacta directamente con nosotros. ¿Quieres ajustar la cantidad?');
-      return;
-    }
-    this.currentOrder.quantity = qty;
-    const unitText = qty === 1 ? 'unidad' : 'unidades';
-    this.addMessage(false, 'text', `📋 Resumen de tu pedido:\n• Producto: ${this.currentOrder.product}\n• Cantidad: ${qty} ${unitText}\n\n¿Confirmas este pedido? (Responde: sí/no)`);
-    this.orderState = 'confirming';
-  }
-
-  private handleConfirmingState(message: string): void {
-    if (this.containsWords(message, ['sí', 'si', 'yes', 'confirmo', 'correcto', 'ok'])) {
-      const orderNumber = this.generateOrderNumber();
-      this.addMessage(false, 'text', `🎉 ¡Pedido confirmado exitosamente!\n\n📦 Número de orden: #${orderNumber}\n⏱️ Tiempo estimado: 25-35 minutos\n💰 Total estimado: Consultar al recibir\n\n¿Te gustaría pedir algo más?`);
-      this.resetOrder();
-    } else if (this.containsWords(message, ['no', 'cancelar', 'cambiar'])) {
-      this.addMessage(false, 'text', 'Pedido cancelado. ¿Te gustaría hacer un nuevo pedido o hay algo más en lo que pueda ayudarte?');
-      this.resetOrder();
-    } else {
-      this.addMessage(false, 'text', 'Por favor, responde "sí" para confirmar o "no" para cancelar el pedido.');
-    }
-  }
-
   private addMessage(user: boolean, type: 'text' | 'image' | 'audio', content: string): void {
-    this.messages.push({ user, type, content, timestamp: new Date() });
+    this.messages.push({
+      user,
+      type,
+      content,
+      timestamp: new Date()
+    });
+  }
+
+  getCurrentTime(): string {
+    const now = new Date();
+    return now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
+  }
+
+  getCurrentDateTime(): string {
+    const now = new Date();
+    const date = now.toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric' });
+    const time = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
+    return `${date} ${time}`;
   }
 
   private simulateTyping(): void {
@@ -244,40 +196,6 @@ export class ChatbotComponent implements AfterViewChecked {
 
   private stopTyping(): void {
     this.isTyping = false;
-  }
-
-  private resetOrder(): void {
-    this.orderState = 'waiting';
-    this.currentOrder = { product: '', quantity: 0 };
-  }
-
-  private containsWords(text: string, words: string[]): boolean {
-    const normalizedText = this.normalizeText(text);
-    return words.some(word => normalizedText.includes(this.normalizeText(word)));
-  }
-
-  private normalizeText(text: string): string {
-    return text.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim();
-  }
-
-  private formatProductName(product: string): string {
-    return product.charAt(0).toUpperCase() + product.slice(1).toLowerCase();
-  }
-
-  private getRandomResponse(responses: string[]): string {
-    return responses[Math.floor(Math.random() * responses.length)];
-  }
-
-  private getRandomDelay(min: number, max: number): number {
-    return Math.floor(Math.random() * (max - min + 1)) + min;
-  }
-
-  private generateOrderNumber(): string {
-    return Math.random().toString(36).substr(2, 9).toUpperCase();
-  }
-
-  getCurrentTime(): string {
-    return new Date().toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
   }
 
   ngAfterViewChecked(): void {
@@ -289,5 +207,11 @@ export class ChatbotComponent implements AfterViewChecked {
       const element = this.chatBox.nativeElement;
       element.scrollTop = element.scrollHeight;
     } catch {}
+  }
+
+  formatMessageDateTime(timestamp: Date): string {
+    const date = timestamp.toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric' });
+    const time = timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
+    return `${date} ${time}`;
   }
 }

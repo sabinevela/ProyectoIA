@@ -1,4 +1,4 @@
-import { Component, OnInit, ElementRef, ViewChildren, QueryList, AfterViewInit, CUSTOM_ELEMENTS_SCHEMA } from '@angular/core';
+import { Component, OnInit, ElementRef, ViewChildren, QueryList, AfterViewInit, OnDestroy, CUSTOM_ELEMENTS_SCHEMA } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Router, RouterModule } from '@angular/router';
 
@@ -17,14 +17,13 @@ interface ChatBot {
 @Component({
   selector: 'app-navegacion',
   standalone: true,
-  imports: [CommonModule, RouterModule], 
+  imports: [CommonModule, RouterModule],
   templateUrl: './navegacion.component.html',
   styleUrls: ['./navegacion.component.css'],
-  schemas: [CUSTOM_ELEMENTS_SCHEMA] // 👈 Esto es lo que hace que <dotlottie-wc> no de error
+  schemas: [CUSTOM_ELEMENTS_SCHEMA]
 })
-export class NavegacionComponent implements OnInit, AfterViewInit {
+export class NavegacionComponent implements OnInit, AfterViewInit, OnDestroy {
   @ViewChildren('chatSection') chatSections!: QueryList<ElementRef>;
-
   isTransitioning = false;
 
   chatbots: ChatBot[] = [
@@ -37,12 +36,7 @@ export class NavegacionComponent implements OnInit, AfterViewInit {
       gradientClass: 'openai-gradient',
       cardClass: 'openai-shadow',
       isVisible: false,
-      features: [
-        'Conversación natural y fluida',
-        'Respuestas inteligentes en tiempo real',
-        'Soporte para mensajes de voz',
-        'Información completa del negocio'
-      ]
+      features: ['Conversación natural y fluida', 'Respuestas inteligentes en tiempo real', 'Soporte para mensajes de voz', 'Información completa del negocio']
     },
     {
       id: 'vision',
@@ -53,12 +47,7 @@ export class NavegacionComponent implements OnInit, AfterViewInit {
       gradientClass: 'vision-gradient',
       cardClass: 'vision-shadow',
       isVisible: false,
-      features: [
-        'Reconocimiento IA de última generación',
-        'Análisis detallado de imágenes',
-        'Modelo entrenado especializado',
-        'Identificación precisa y rápida'
-      ]
+      features: ['Reconocimiento IA de última generación', 'Análisis detallado de imágenes', 'Modelo entrenado especializado', 'Identificación precisa y rápida']
     },
     {
       id: 'generator',
@@ -69,16 +58,11 @@ export class NavegacionComponent implements OnInit, AfterViewInit {
       gradientClass: 'generator-gradient',
       cardClass: 'generator-shadow',
       isVisible: false,
-      features: [
-        'Generación IA de imágenes',
-        'Resultados únicos y creativos',
-        'Prompts inteligentes y detallados',
-        'Calidad profesional garantizada'
-      ]
+      features: ['Generación IA de imágenes', 'Resultados únicos y creativos', 'Prompts inteligentes y detallados', 'Calidad profesional garantizada']
     }
   ];
 
-  private observer!: IntersectionObserver;
+  private observer?: IntersectionObserver;
 
   constructor(private router: Router) {}
 
@@ -87,67 +71,49 @@ export class NavegacionComponent implements OnInit, AfterViewInit {
   }
 
   ngAfterViewInit(): void {
-    this.setupScrollAnimations();
+    if (typeof IntersectionObserver !== 'undefined') {
+      this.setupScrollAnimations();
+    }
   }
 
   private setupScrollAnimations(): void {
-    const options = {
-      root: null,
-      rootMargin: '-20% 0px -20% 0px',
-      threshold: 0.3
-    };
+    if (typeof IntersectionObserver === 'undefined') return;
 
+    const options = { root: null, rootMargin: '-20% 0px -20% 0px', threshold: 0.3 };
     this.observer = new IntersectionObserver((entries) => {
       entries.forEach((entry) => {
         const sectionIndex = parseInt(entry.target.getAttribute('data-index') || '0');
-
         if (entry.isIntersecting) {
-          setTimeout(() => {
-            this.chatbots[sectionIndex].isVisible = true;
-          }, sectionIndex * 300);
+          setTimeout(() => { this.chatbots[sectionIndex].isVisible = true; }, sectionIndex * 300);
         }
       });
     }, options);
 
     setTimeout(() => {
       this.chatSections.forEach((sectionElement) => {
-        this.observer.observe(sectionElement.nativeElement);
+        this.observer?.observe(sectionElement.nativeElement);
       });
     }, 100);
   }
 
   handleChatClick(chatbot: ChatBot): void {
     if (this.isTransitioning) return;
-
     console.log(`Navegando a: ${chatbot.id}`);
     this.isTransitioning = true;
-
-    setTimeout(() => {
-      this.navigateToChat(chatbot.id);
-    }, 3000);
+    setTimeout(() => { this.navigateToChat(chatbot.id); }, 3000);
   }
 
   private navigateToChat(chatbotId: string): void {
     switch (chatbotId) {
-      case 'openai':
-        this.router.navigate(['/chatbot']);
-        break;
-      case 'vision':
-        this.router.navigate(['/register']);
-        break;
-      case 'generator':
-        this.router.navigate(['/chat-generator']);
-        break;
-      default:
-        console.error(`Ruta no definida para: ${chatbotId}`);
+      case 'openai': this.router.navigate(['/chatbot']); break;
+      case 'vision': this.router.navigate(['/register']); break;
+      case 'generator': this.router.navigate(['/chat-generator']); break;
+      default: console.error(`Ruta no definida para: ${chatbotId}`);
     }
-
     this.isTransitioning = false;
   }
 
   ngOnDestroy(): void {
-    if (this.observer) {
-      this.observer.disconnect();
-    }
+    this.observer?.disconnect();
   }
 }

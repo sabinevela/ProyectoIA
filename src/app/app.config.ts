@@ -10,6 +10,7 @@ export const appConfig = {
   providers: [
     provideHttpClient(withFetch()),
     provideRouter(routes),
+    
     provideAnimations(),
     importProvidersFrom(CommonModule, FormsModule),
   ]

@@ -47,7 +47,11 @@
           </div>
         </ng-container>
 
-        <div class="message-time">{{ getCurrentTime() }}</div>
+        <div class="message-time">
+          <span class="timestamp" *ngIf="msg.timestamp">
+            {{ formatMessageDateTime(msg.timestamp) }}
+          </span>
+        </div>
       </div>
     </div>
 
@@ -81,12 +85,7 @@
         </label>
         <input id="upload-audio" type="file" accept="audio/*" (change)="onAudioUpload($event)" hidden />
 
-        <button type="button"
-                class="record-button"
-                [class.recording]="isRecording"
-                (click)="toggleRecording()"
-                [disabled]="isTyping"
-                title="Grabar audio">
+        <button type="button" class="record-button" [class.recording]="isRecording" (click)="toggleRecording()" [disabled]="isTyping" title="Grabar audio">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
             <circle cx="12" cy="12" r="6"></circle>
           </svg>
@@ -94,24 +93,8 @@
       </div>
 
       <div class="text-input-section">
-        <input
-          type="text"
-          class="message-input"
-          placeholder="Escribe tu mensaje..."
-          [(ngModel)]="userInput"
-          name="message"
-          required
-          autocomplete="off"
-          maxlength="300"
-          [disabled]="isTyping"
-        />
-
-        <button
-          type="submit"
-          class="send-button"
-          [disabled]="!userInput.trim() || isTyping"
-          [class.pulse]="userInput.trim()"
-          aria-label="Enviar mensaje">
+        <input type="text" class="message-input" placeholder="Escribe tu mensaje..." [(ngModel)]="userInput" name="message" required autocomplete="off" maxlength="300" [disabled]="isTyping" />
+        <button type="submit" class="send-button" [disabled]="!userInput.trim() || isTyping" [class.pulse]="userInput.trim()" aria-label="Enviar mensaje">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <line x1="22" y1="2" x2="11" y2="13"></line>
             <polygon points="22,2 15,22 11,13 2,9 22,2"></polygon>
@@ -121,15 +104,9 @@
     </div>
 
     <div class="quick-actions">
-      <button type="button" class="quick-action" (click)="sendQuickMessage('Ver menú')">
-        📋 Ver menú
-      </button>
-      <button type="button" class="quick-action" (click)="sendQuickMessage('Hacer pedido')">
-        🛒 Hacer pedido
-      </button>
-      <button type="button" class="quick-action" (click)="sendQuickMessage('Ayuda')">
-        ❓ Ayuda
-      </button>
+      <button type="button" class="quick-action" (click)="sendQuickMessage('Ver menú')">📋 Ver menú</button>
+      <button type="button" class="quick-action" (click)="sendQuickMessage('Hacer pedido')">🛒 Hacer pedido</button>
+      <button type="button" class="quick-action" (click)="sendQuickMessage('Ayuda')">❓ Ayuda</button>
     </div>
   </form>
 </section>
